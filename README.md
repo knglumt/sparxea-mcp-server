@@ -162,7 +162,7 @@ loads it automatically via `python-dotenv`.)
 
 If the server is already running in HTTP mode on a machine you can reach
 over your LAN/VPN but that has **no public domain and no TLS** (e.g. a
-bare internal IP like `http://10.0.1.221:8765/mcp`), Claude Desktop's
+bare internal IP like `http://10.0.0.1:8765/mcp`), Claude Desktop's
 built-in "Custom Connector" UI (Customize → Connectors) **will not work**
 for this - it always connects from Anthropic's cloud infrastructure, not
 your device, so a private IP is simply unreachable that way, even from
@@ -181,7 +181,7 @@ network traffic, not Anthropic's cloud:
       "args": [
         "-y",
         "mcp-remote",
-        "http://10.0.1.221:8765/mcp",
+        "http://10.0.0.1:8765/mcp",
         "--allow-http",
         "--header",
         "Authorization:${AUTH_HEADER}"
@@ -219,7 +219,7 @@ behind a generic "Server disconnected"), run the exact same command in a
 terminal:
 
 ```bash
-npx -y mcp-remote http://10.0.1.221:8765/mcp --allow-http --header "Authorization:Bearer <your token>"
+npx -y mcp-remote http://10.0.0.1:8765/mcp --allow-http --header "Authorization:Bearer <your token>"
 ```
 
 `Connected to remote server using StreamableHTTPClientTransport` /
