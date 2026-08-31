@@ -1,0 +1,26 @@
+# Convenience wrapper around `docker run` - see README's Docker section
+# for the plain `docker build`/`docker run` equivalent and the reasoning
+# behind the bind-address/port-mapping choices below.
+#
+# Usage:
+#   cp .env.example .env   # then fill it in - see README
+#   docker compose up -d --build
+#   docker compose logs -f
+#   docker compose down
+
+services:
+  sparxea-mcp:
+    build:
+      context: .
+      # Add `args: {INSTALL_MSODBC: "false"}` here if you don't need
+      # Microsoft's SQL Server driver and want to skip its EULA/build time.
+    image: sparxea-mcp-server
+    container_name: sparxea-mcp
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      # Bind only to localhost on the host side - a reverse proxy
+      # (deploy/Caddyfile or deploy/nginx-sparxea-mcp.conf) running on the
+      # host, not in this compose file, is what should be internet-facing.
+      - "127.0.0.1:8765:8765"

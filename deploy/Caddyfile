@@ -1,0 +1,37 @@
+# Caddyfile - reverse proxy with automatic HTTPS (Let's Encrypt) in front
+# of SparxEA-MCP-Server's HTTP transport.
+#
+# Why put a reverse proxy in front at all, when the app can bind a public
+# port itself? Two reasons: (1) Claude's custom connectors require HTTPS,
+# and Caddy/nginx get you a trusted cert with no code changes here; (2) it
+# keeps the Python process bound to 127.0.0.1, so the only thing exposed
+# to the internet is a hardened, well-audited proxy rather than a
+# hand-rolled uvicorn server.
+#
+# Install Caddy (Ubuntu):
+#   sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl
+#   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+#   curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+#   sudo apt-get update && sudo apt-get install -y caddy
+#
+# Install this config:
+#   sudo cp deploy/Caddyfile /etc/caddy/Caddyfile
+#   # edit the domain name below first
+#   sudo systemctl reload caddy
+#
+# Caddy automatically obtains and renews a Let's Encrypt certificate for
+# the domain the first time it starts - make sure DNS for that domain
+# already points at this server's public IP before reloading.
+
+mcp.your-domain.example.com {
+	reverse_proxy 127.0.0.1:8765
+
+	# MCP's streamable-http transport uses long-lived requests
+	# (server-sent events) for the response stream - keep them open.
+	@mcp path /mcp*
+	handle @mcp {
+		reverse_proxy 127.0.0.1:8765 {
+			flush_interval -1
+		}
+	}
+}

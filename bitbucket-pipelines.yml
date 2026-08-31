@@ -1,0 +1,74 @@
+# Bitbucket Pipelines: builds this image on every push (catches Dockerfile/
+# dependency breakage before it reaches a server), and pushes it to a
+# registry on tags.
+#
+# Bitbucket itself doesn't host container images - you still need a
+# registry (Docker Hub, AWS ECR, Azure ACR, GitHub Container Registry, a
+# self-hosted Harbor, etc.). Set these as repository/deployment variables
+# under Repository settings > Pipelines > Repository variables (mark
+# DOCKER_PASSWORD as "Secured"):
+#
+#   DOCKER_REGISTRY   e.g. docker.io, or <account>.dkr.ecr.<region>.amazonaws.com
+#   DOCKER_IMAGE      e.g. your-org/sparxea-mcp-server
+#   DOCKER_USERNAME
+#   DOCKER_PASSWORD   (Secured)
+#
+# If you don't need publishing at all, delete the "publish-tagged-release"
+# step below and keep just "build-and-smoke-test" for CI.
+
+image: atlassian/default-image:4
+
+definitions:
+  steps:
+    - step: &build-and-smoke-test
+        name: Build image and smoke-test the container
+        services:
+          - docker
+        script:
+          - docker build --build-arg INSTALL_MSODBC=false -t sparxea-mcp-server:ci .
+          # Open-source-only build (INSTALL_MSODBC=false) so this step
+          # doesn't depend on being able to reach packages.microsoft.com
+          # or on accepting Microsoft's EULA in CI. Full builds (the
+          # default, Microsoft driver included) still happen locally or
+          # in the publish step below.
+          - docker run -d --name ci-test -p 127.0.0.1:8765:8765
+              -e MCP_AUTH_TOKEN=ci-smoke-test-token
+              -e EA_DB_DRIVER="MariaDB Unicode" -e EA_DB_BACKEND=mariadb
+              -e EA_DB_SERVER=127.0.0.1 -e EA_DB_NAME=placeholder
+              -e EA_DB_USER=placeholder -e EA_DB_PASSWORD=placeholder
+              sparxea-mcp-server:ci
+          - sleep 3
+          # Confirm the server answers a real MCP handshake and rejects
+          # unauthenticated requests - doesn't require a live database,
+          # since neither check calls a DB-backed tool.
+          - |
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://127.0.0.1:8765/mcp \
+              -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+              -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}')
+            test "$CODE" = "401" || (echo "expected 401 without auth, got $CODE" && exit 1)
+          - |
+            curl -sf -X POST http://127.0.0.1:8765/mcp \
+              -H "Authorization: Bearer ci-smoke-test-token" \
+              -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+              -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}' \
+              | grep -q "SparxEA-MCP-Server"
+          - docker logs ci-test
+
+    - step: &publish-tagged-release
+        name: Build and push to registry
+        services:
+          - docker
+        script:
+          - docker build -t "$DOCKER_REGISTRY/$DOCKER_IMAGE:$BITBUCKET_TAG" -t "$DOCKER_REGISTRY/$DOCKER_IMAGE:latest" .
+          - echo "$DOCKER_PASSWORD" | docker login "$DOCKER_REGISTRY" -u "$DOCKER_USERNAME" --password-stdin
+          - docker push "$DOCKER_REGISTRY/$DOCKER_IMAGE:$BITBUCKET_TAG"
+          - docker push "$DOCKER_REGISTRY/$DOCKER_IMAGE:latest"
+
+pipelines:
+  default:
+    - step: *build-and-smoke-test
+
+  tags:
+    "v*":
+      - step: *build-and-smoke-test
+      - step: *publish-tagged-release

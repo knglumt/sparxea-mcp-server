@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sparxea-mcp-server"
+version = "2.0.0"
+description = "Read-only MCP server for Sparx Enterprise Architect repositories, over ODBC in ANSI SQL - works with any DBMS Sparx EA supports that has an ODBC driver and ANSI SQL:2008 OFFSET/FETCH support"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.2.0",
+    "pyodbc>=5.1.0",
+    "python-dotenv>=1.0.1",
+    "uvicorn>=0.30",
+]
+
+[project.scripts]
+sparxea-mcp-server = "sparx_ea_mcp.server:main"
+
+[tool.setuptools]
+packages = ["sparx_ea_mcp"]

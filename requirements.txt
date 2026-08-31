@@ -1,0 +1,11 @@
+# Single driver: pyodbc. This server connects to any DBMS via an ODBC
+# driver you install separately for that specific DBMS (see README) -
+# the same approach Sparx EA itself documents for non-native-connection,
+# server-based repositories.
+mcp>=1.2.0
+pyodbc>=5.1.0
+python-dotenv>=1.0.1
+
+# Only needed if you run the HTTP transport (MCP_TRANSPORT=http) to host
+# this as a remote MCP server - not needed for local STDIO use.
+uvicorn>=0.30

@@ -1,0 +1,46 @@
+# Persistent systemd service for SparxEA-MCP-Server in HTTP transport mode.
+#
+# Install:
+#   sudo cp deploy/sparxea-mcp-server.service /etc/systemd/system/
+#   sudo useradd --system --no-create-home --shell /usr/sbin/nologin sparxea-mcp   # if it doesn't exist yet
+#   sudo chown -R sparxea-mcp:sparxea-mcp /opt/sparxea-mcp-server   # wherever you deployed the project
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now sparxea-mcp-server
+#
+# Check status / logs:
+#   sudo systemctl status sparxea-mcp-server
+#   sudo journalctl -u sparxea-mcp-server -f
+#
+# Edit the WorkingDirectory/ExecStart paths below to match wherever you
+# actually deployed this project (this template assumes /opt/sparxea-mcp-server
+# with the venv at .venv inside it, as set up by install.sh).
+
+[Unit]
+Description=SparxEA-MCP-Server (read-only Sparx EA MCP server)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sparxea-mcp
+Group=sparxea-mcp
+WorkingDirectory=/opt/sparxea-mcp-server
+EnvironmentFile=/opt/sparxea-mcp-server/.env
+Environment=MCP_TRANSPORT=http
+ExecStart=/opt/sparxea-mcp-server/.venv/bin/python3 -m sparx_ea_mcp.server
+
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Hardening: this service never writes to the EA repository and doesn't
+# need to write anywhere on disk either, so lock it down accordingly.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadOnlyPaths=/opt/sparxea-mcp-server
+
+[Install]
+WantedBy=multi-user.target
